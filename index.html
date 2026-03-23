@@ -493,13 +493,6 @@
   // ════════════════════════════════════════
   async function init() {
     initAudio();
-    // 手機：切換為節拍器模式，YouTube 改為外部連結
-    if (isMobile) {
-      document.getElementById('ytDesktop').style.display = 'none';
-      document.getElementById('ytMobile').classList.remove('hidden');
-      document.getElementById('ytCardHint').textContent = '點連結在 YouTube 聽歌';
-      gs.mode = 'metronome';
-    }
     renderSongSelect();
     renderSongList();
     updateTargetDisplay();
@@ -850,8 +843,10 @@
   }
 
   function setYouTubeEmbed(url) {
-    document.getElementById('ytFrame').src = url || '';
-    // 更新手機外部連結
+    // 加上 playsinline=1 避免手機被跳到 YouTube App
+    const embedUrl = url ? url + (url.includes('?') ? '&' : '?') + 'playsinline=1' : '';
+    document.getElementById('ytFrame').src = embedUrl;
+    // 更新手機外部連結（備用）
     const song = gs.selectedSong;
     if (song) {
       document.getElementById('ytOpenLink').href = song.url;
