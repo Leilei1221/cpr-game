@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CPR 節奏訓練遊戲｜花蓮高中</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .bg-hero {
+      background: radial-gradient(1200px 800px at 70% -20%, #ffe08255, transparent 60%),
+                  radial-gradient(900px 700px at -10% 20%, #80deea55, transparent 60%),
+                  linear-gradient(135deg, #0ea5e9 0%, #a78bfa 100%);
+    }
+    .card {
+      backdrop-filter: blur(8px);
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.22);
+      box-shadow: 0 20px 50px rgba(10, 10, 25, 0.35);
+    }
+    .pulse-ring {
+      box-shadow: 0 0 0 0 rgba(255,255,255,0.55);
+      transform: scale(1);
+      animation: pulse 1.2s ease-out infinite;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255,255,255,0.55); transform: scale(1); }
+      70% { box-shadow: 0 0 0 24px rgba(255,255,255,0); transform: scale(1.02); }
+      100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); transform: scale(1); }
+    }
+    .beat-flash { animation: flash 180ms ease-out; }
+    @keyframes flash {
+      0% { filter: brightness(1); transform: scale(1); }
+      50% { filter: brightness(1.35); transform: scale(1.06); }
+      100% { filter: brightness(1); transform: scale(1); }
+    }
+    .meter-tick::after {
+      content: "";
+      position: absolute;
+      top: -6px; left: 50%; transform: translateX(-50%);
+      width: 2px; height: 12px; background: rgba(255,255,255,0.6); border-radius: 2px;
+    }
+    .yt-embed { aspect-ratio: 16/9; width: 100%; border: 0; border-radius: 14px; background: #0b1020; }
+    .metronome-btn {
+      padding: 4px 8px; border-radius: 6px; font-size: 12px;
+      background: rgba(255,255,255,0.15); border: none; color: white;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .metronome-btn:hover { background: rgba(255,255,255,0.25); }
+    .metronome-btn.active { background: rgba(52, 211, 153, 0.8); }
+
+    /* 登入畫面 */
+    #loginOverlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: radial-gradient(900px 700px at -10% 20%, #80deea55, transparent 60%),
+                  linear-gradient(135deg, #0ea5e9 0%, #a78bfa 100%);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .login-card {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 24px;
+      padding: 36px 32px;
+      width: 90%; max-width: 440px;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+    }
+    .login-input {
+      width: 100%;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: white;
+      font-size: 15px;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .login-input:focus { border-color: rgba(255,255,255,0.7); }
+    .login-input option { background: #1e3a5f; color: white; }
+    .login-input::placeholder { color: rgba(255,255,255,0.5); }
+
+    /* 排名彈窗 */
+    #rankingModal {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+      display: none; align-items: center; justify-content: center;
+    }
+    #rankingModal.show { display: flex; }
+    .ranking-card {
+      background: linear-gradient(135deg, #1e3a5f, #312e81);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 24px;
+      padding: 32px 28px;
+      width: 90%; max-width: 480px;
+      text-align: center;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.5);
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .rank-badge {
+      font-size: 56px; font-weight: 900;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .history-table th { background: rgba(255,255,255,0.1); padding: 6px 8px; }
+    .history-table td { padding: 5px 8px; border-top: 1px solid rgba(255,255,255,0.1); }
+  </style>
+</head>
+<body class="min-h-screen bg-hero text-white antialiased">
+
+  <!-- ══════════════ 登入畫面 ══════════════ -->
+  <div id="loginOverlay">
+    <div class="login-card">
+      <div class="flex items-center gap-3 mb-6">
+        <div class="w-11 h-11 rounded-xl bg-white/20 grid place-items-center">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path d="M3 13c0-3 2.5-5.5 5.5-5.5 2 0 3.7 1.1 4.5 2.7C14.8 8.6 16.5 7.5 18.5 7.5 21.5 7.5 24 10 24 13c0 5-6.8 7.9-10 10-3.2-2.1-10-5-10-10Z" fill="#fff" fill-opacity=".9"/>
+            <polyline points="2 13 6 13 8 9 10 16 12 12 14 15 22 15" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold">CPR 節奏訓練遊戲</h1>
+          <p class="text-white/70 text-sm">國立花蓮高中 健康與護理</p>
+        </div>
+      </div>
+
+      <h2 class="text-lg font-semibold mb-4">學生登入</h2>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-sm text-white/80 mb-1">班級</label>
+          <select id="loginClass" class="login-input">
+            <option value="">請選擇班級...</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm text-white/80 mb-1">座號</label>
+          <input id="loginSeat" type="number" min="1" max="50" class="login-input" placeholder="請輸入座號（數字）"/>
+        </div>
+        <div>
+          <label class="block text-sm text-white/80 mb-1">姓名</label>
+          <input id="loginName" type="text" class="login-input" placeholder="請輸入真實姓名"/>
+        </div>
+
+        <div id="loginError" class="hidden text-red-300 text-sm py-2 text-center"></div>
+
+        <button id="loginBtn" onclick="doLogin()"
+          class="w-full bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 transition rounded-xl py-3 font-semibold text-base mt-2">
+          進入遊戲
+        </button>
+
+        <div class="relative flex items-center my-3">
+          <div class="flex-1 h-px bg-white/20"></div>
+          <span class="px-3 text-white/50 text-xs">或</span>
+          <div class="flex-1 h-px bg-white/20"></div>
+        </div>
+
+        <button onclick="doGuestLogin()"
+          class="w-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition rounded-xl py-3 font-semibold text-base border border-white/20">
+          👁️ 訪客體驗（不記錄成績）
+        </button>
+      </div>
+
+      <p class="text-xs text-white/50 text-center mt-4">
+        學生登入後成績自動記錄，遊戲結束後顯示排名 🏆
+      </p>
+    </div>
+  </div>
+
+  <!-- ══════════════ 排名彈窗 ══════════════ -->
+  <div id="rankingModal">
+    <div class="ranking-card">
+      <div class="text-3xl mb-1">🏆</div>
+      <h2 class="text-xl font-bold mb-1">本次練習結果</h2>
+      <p id="rankStudentName" class="text-white/70 text-sm mb-4"></p>
+
+      <!-- 本次成績 -->
+      <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="bg-white/10 rounded-xl py-3">
+          <div class="text-xs text-white/60">平均BPM</div>
+          <div id="rankAvgBpm" class="text-xl font-bold">—</div>
+        </div>
+        <div class="bg-white/10 rounded-xl py-3">
+          <div class="text-xs text-white/60">準確率</div>
+          <div id="rankAccuracy" class="text-xl font-bold">—</div>
+        </div>
+        <div class="bg-white/10 rounded-xl py-3">
+          <div class="text-xs text-white/60">點擊數</div>
+          <div id="rankHits" class="text-xl font-bold">—</div>
+        </div>
+      </div>
+
+      <!-- 排名 -->
+      <div class="bg-white/10 rounded-2xl py-4 px-6 mb-4">
+        <div class="text-sm text-white/70 mb-1">全體排名</div>
+        <div class="flex items-baseline justify-center gap-1">
+          <span class="rank-badge" id="rankOverall">—</span>
+          <span class="text-white/70 text-lg">/ <span id="rankTotal">—</span> 人</span>
+        </div>
+        <div class="text-sm text-white/60 mt-1">
+          班級排名：第 <span id="rankClass" class="font-bold text-cyan-300">—</span> 名 /
+          <span id="rankClassTotal">—</span> 人
+        </div>
+      </div>
+
+      <!-- 鼓勵語 -->
+      <div id="rankEncourage" class="bg-emerald-500/20 border border-emerald-400/30 rounded-xl px-4 py-3 mb-4 text-sm leading-relaxed"></div>
+
+      <!-- 歷史成績 -->
+      <div class="mb-4">
+        <div class="text-sm font-semibold mb-2 text-white/80">我的歷史成績</div>
+        <div id="rankHistoryWrap" class="overflow-x-auto rounded-xl">
+          <table class="history-table text-white/90">
+            <thead>
+              <tr>
+                <th>時間</th><th>BPM</th><th>準確率</th><th>點擊</th><th>歌曲</th>
+              </tr>
+            </thead>
+            <tbody id="rankHistoryBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button onclick="closeRanking()" class="flex-1 bg-white/15 hover:bg-white/25 rounded-xl py-2 font-semibold">繼續練習</button>
+        <button onclick="doLogout()" class="flex-1 bg-white/10 hover:bg-white/20 rounded-xl py-2 text-sm">切換學生</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ 主遊戲 ══════════════ -->
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-white/20 grid place-items-center">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 13c0-3 2.5-5.5 5.5-5.5 2 0 3.7 1.1 4.5 2.7C14.8 8.6 16.5 7.5 18.5 7.5 21.5 7.5 24 10 24 13c0 5-6.8 7.9-10 10-3.2-2.1-10-5-10-10Z" fill="#fff" fill-opacity=".9"/>
+            <polyline points="2 13 6 13 8 9 10 16 12 12 14 15 22 15" fill="none" stroke="#0ea5e9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold leading-tight">CPR 節奏訓練遊戲</h1>
+          <p class="text-white/80 text-sm" id="headerStudentInfo">載入中...</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="bg-white/15 rounded-full p-1 flex">
+          <button id="modeYoutube" class="px-3 py-1 text-sm rounded-full bg-white/25">YouTube</button>
+          <button id="modeMetronome" class="px-3 py-1 text-sm rounded-full hover:bg-white/20">節拍器</button>
+        </div>
+        <button onclick="doLogout()" class="text-xs px-3 py-2 bg-white/10 hover:bg-white/20 rounded-lg">切換學生</button>
+      </div>
+    </header>
+
+    <main class="mt-6 grid lg:grid-cols-3 gap-6">
+      <!-- Left -->
+      <section class="card rounded-2xl p-5 lg:col-span-1">
+        <h2 class="text-lg font-semibold mb-3">建議歌單（BPM）</h2>
+        <div class="mb-4">
+          <label class="block text-sm text-white/80 mb-2">選擇練習歌曲：</label>
+          <select id="songSelect" class="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-emerald-400"></select>
+        </div>
+        <div id="songList" class="space-y-2 mb-4"></div>
+        <div id="metronomePanel" class="hidden flex items-center gap-2 p-2 bg-white/10 rounded-lg mt-2">
+          <span class="text-sm">節拍器：</span>
+          <button class="metronome-btn" data-bpm="100">100</button>
+          <button class="metronome-btn" data-bpm="110">110</button>
+          <button class="metronome-btn active" data-bpm="115">115</button>
+          <button class="metronome-btn" data-bpm="120">120</button>
+          <div class="flex items-center gap-1 ml-2">
+            <span class="text-xs">音量</span>
+            <input type="range" id="metronomeVolume" min="0" max="1" step="0.1" value="0.6" class="w-16 h-1">
+          </div>
+        </div>
+        <div class="h-px bg-white/15 my-5"></div>
+        <h3 class="text-base font-semibold mb-2">開始前小提醒</h3>
+        <ul class="space-y-2 text-white/90 text-sm leading-relaxed">
+          <li class="flex gap-2"><span>•</span><span>CPR 壓胸建議節奏：每分鐘 100–120 下</span></li>
+          <li class="flex gap-2"><span>•</span><span>每次壓胸深度約 5–6 公分，讓胸部完全回彈</span></li>
+          <li class="flex gap-2"><span>•</span><span>雙手交疊、手肘打直、肩膀在手的正上方</span></li>
+        </ul>
+        <div class="mt-5 grid grid-cols-2 gap-3">
+          <button id="btnStart" class="col-span-2 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 transition rounded-xl px-4 py-3 font-semibold">開始訓練</button>
+          <button id="btnPause" class="bg-white/15 hover:bg-white/25 transition rounded-xl px-3 py-2">暫停 / 送出</button>
+          <button id="btnReset" class="bg-white/15 hover:bg-white/25 transition rounded-xl px-3 py-2">重置</button>
+        </div>
+        <p id="submitHint" class="text-xs text-white/70 mt-3">暫停後會自動送出成績並顯示排名。</p>
+      </section>
+
+      <!-- Center -->
+      <section class="lg:col-span-1 flex flex-col gap-4">
+        <section class="card rounded-2xl p-4" id="youtubeCard">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">YouTube 播放區</h2>
+            <div class="text-xs text-white/70" id="ytCardHint">選曲時自動切換</div>
+          </div>
+          <!-- 桌機：內嵌播放器 -->
+          <div id="ytDesktop">
+            <iframe id="ytFrame" class="yt-embed" src="" title="YouTube" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+          </div>
+          <!-- 手機：改為外部連結，避免被強制開啟 YouTube App -->
+          <div id="ytMobile" class="hidden">
+            <p class="text-xs text-white/70 mb-3 leading-relaxed">
+              📱 手機模式：點下方按鈕在 YouTube 聽歌，返回後用節拍器跟著節奏練習
+            </p>
+            <a id="ytOpenLink" href="#" target="_blank" rel="noopener"
+              class="flex items-center justify-center gap-2 bg-red-600/80 hover:bg-red-500 active:bg-red-700 transition rounded-xl py-3 px-4 font-semibold text-sm w-full">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="white"/></svg>
+              在 YouTube 聽歌（另開）
+            </a>
+            <div id="ytSongInfo" class="text-xs text-white/60 text-center mt-2"></div>
+          </div>
+        </section>
+        <section class="card rounded-2xl p-4 hidden" id="metronomeCard">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="text-lg font-semibold">內建節拍器</h2>
+            <div class="flex items-center gap-2">
+              <span id="currentBpm" class="text-lg font-bold text-emerald-300">115</span>
+              <span class="text-sm text-white/70">BPM</span>
+            </div>
+          </div>
+          <div class="text-center py-8">
+            <div class="text-6xl mb-2" id="metronomeVisual">♪</div>
+            <div class="text-sm text-white/80">節拍器準備中</div>
+          </div>
+          <div class="flex justify-center mt-4">
+            <button id="metronomePlayBtn" class="bg-emerald-500 hover:bg-emerald-600 px-6 py-2 rounded-xl font-semibold">開始節拍器</button>
+          </div>
+        </section>
+
+        <!-- 節奏練習 -->
+        <section class="card rounded-2xl p-4 flex flex-col items-center">
+          <h2 class="text-lg font-semibold mb-3">節奏練習區</h2>
+          <div class="relative w-full max-w-[280px] aspect-square mt-1">
+            <div id="beatHalo" class="absolute inset-0 rounded-full pulse-ring opacity-70 bg-gradient-to-br from-cyan-400/20 to-fuchsia-500/20"></div>
+            <div id="beatCircle" class="absolute inset-2 rounded-full grid place-items-center bg-gradient-to-br from-cyan-400 to-fuchsia-500 cursor-pointer active:scale-95 transition-transform select-none">
+              <div class="text-center pointer-events-none">
+                <div id="beatLabel" class="text-4xl md:text-5xl font-black drop-shadow-sm">READY</div>
+                <div id="hitHint" class="text-xs md:text-sm mt-1 text-white/90">點擊這裡跟著節拍</div>
+              </div>
+            </div>
+            <div class="absolute inset-0 rounded-full border-2 border-white/20 pointer-events-none"></div>
+            <div class="absolute inset-0 pointer-events-none">
+              <div class="meter-tick absolute top-1/2 left-0 translate-y-[-50%] w-0 h-0"></div>
+              <div class="meter-tick absolute top-0 left-1/2 -translate-x-1/2 w-0 h-0"></div>
+              <div class="meter-tick absolute top-1/2 right-0 -translate-y-1/2 w-0 h-0"></div>
+              <div class="meter-tick absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0"></div>
+            </div>
+          </div>
+          <div class="mt-4 flex flex-col items-center gap-3">
+            <button id="tapBtn" class="bg-white text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition rounded-full px-6 py-3 text-base font-semibold shadow-lg min-h-[48px]">
+              手機點擊按鈕（或空白鍵）
+            </button>
+            <div class="flex items-center gap-2">
+              <span class="text-white/80 text-sm">目標 BPM：</span>
+              <div id="targetBpmBadge" class="px-3 py-1 rounded-full bg-white/15 text-sm">選擇歌曲</div>
+            </div>
+          </div>
+          <div class="w-full mt-4 grid grid-cols-3 gap-2">
+            <div class="rounded-xl bg-white/10 px-3 py-2 text-center">
+              <div class="text-xs text-white/70">目前 BPM</div>
+              <div id="liveBpm" class="text-lg font-bold">—</div>
+            </div>
+            <div class="rounded-xl bg-white/10 px-3 py-2 text-center">
+              <div class="text-xs text-white/70">準確率</div>
+              <div id="accuracy" class="text-lg font-bold">—</div>
+            </div>
+            <div class="rounded-xl bg-white/10 px-3 py-2 text-center">
+              <div class="text-xs text-white/70">節奏</div>
+              <div id="tempoHint" class="text-lg font-bold">—</div>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <!-- Right -->
+      <section class="card rounded-2xl p-5 lg:col-span-1">
+        <h2 class="text-lg font-semibold mb-3">練習成績</h2>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="rounded-xl bg-white/10 px-4 py-3">
+            <div class="text-xs text-white/70">平均 BPM</div>
+            <div id="avgBpm" class="text-2xl font-bold">—</div>
+          </div>
+          <div class="rounded-xl bg-white/10 px-4 py-3">
+            <div class="text-xs text-white/70">總點擊數</div>
+            <div id="totalHits" class="text-2xl font-bold">0</div>
+          </div>
+          <div class="rounded-xl bg-white/10 px-4 py-3 col-span-2">
+            <div class="text-xs text-white/70">建議</div>
+            <div id="advice" class="text-base font-semibold mt-1">請先登入，然後選曲開始！</div>
+          </div>
+        </div>
+
+        <div class="h-px bg-white/15 my-5"></div>
+
+        <!-- 我的最佳 -->
+        <h3 class="text-base font-semibold mb-2">我的最佳紀錄</h3>
+        <div class="grid grid-cols-3 gap-3">
+          <div class="rounded-xl bg-white/10 px-4 py-3">
+            <div class="text-xs text-white/70">最佳準確率</div>
+            <div id="myBestAccuracy" class="text-2xl font-bold">—</div>
+          </div>
+          <div class="rounded-xl bg-white/10 px-4 py-3">
+            <div class="text-xs text-white/70">最佳 BPM</div>
+            <div id="myBestBpm" class="text-2xl font-bold">—</div>
+          </div>
+          <div class="rounded-xl bg-white/10 px-4 py-3">
+            <div class="text-xs text-white/70">測驗次數</div>
+            <div id="myPlayCount" class="text-2xl font-bold">—</div>
+          </div>
+        </div>
+        <div class="mt-3 text-xs text-white/60" id="myLastPlayed"></div>
+
+        <div class="h-px bg-white/15 my-4"></div>
+        <h3 class="text-base font-semibold mb-2">為什麼 100–120 BPM？</h3>
+        <p class="text-sm text-white/90 leading-relaxed">
+          這個節奏能幫助維持足夠的血液循環，提高患者存活率。壓胸時要穩定、有力，深度約 5–6 公分，並避免中斷。
+        </p>
+        <div class="mt-3 grid grid-cols-3 gap-2">
+          <div class="rounded-xl bg-white/10 p-2 text-center">
+            <div class="text-2xl mb-1">🙌</div>
+            <p class="text-xs text-white/80">雙手交疊</p>
+          </div>
+          <div class="rounded-xl bg-white/10 p-2 text-center">
+            <div class="text-2xl mb-1">📏</div>
+            <p class="text-xs text-white/80">手肘打直</p>
+          </div>
+          <div class="rounded-xl bg-white/10 p-2 text-center">
+            <div class="text-2xl mb-1">📐</div>
+            <p class="text-xs text-white/80">深度 5-6cm</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="mt-8 text-center text-white/80 text-sm">
+      <p>🎵 手機優化版：大圓圈點擊區域，支援觸控震動回饋</p>
+    </footer>
+  </div>
+
+  <script>
+  // ════════════════════════════════════════
+  //  GAS 後端設定（部署 GAS 後填入網址）
+  // ════════════════════════════════════════
+  const GAS_URL = 'YOUR_GAS_WEB_APP_URL_HERE';
+
+  // ════════════════════════════════════════
+  //  環境偵測
+  // ════════════════════════════════════════
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // ════════════════════════════════════════
+  //  歌曲資料
+  // ════════════════════════════════════════
+  const songs = [
+    { id:'golden',  title:'Golden（NewJeans）',      bpm:120, note:'CPR推薦',  url:'https://youtu.be/yebNIHKAC4A', embed:'https://www.youtube.com/embed/yebNIHKAC4A?si=vtBOuVfaVpYRWM-1' },
+    { id:'baby',    title:'Baby Shark',               bpm:115, note:'穩定好跟', url:'https://youtu.be/XqZsoesa55w', embed:'https://www.youtube.com/embed/XqZsoesa55w?si=vONMF1YW8r-ivpD7' },
+    { id:'stayin',  title:"Stayin' Alive（Bee Gees）",bpm:104, note:'經典CPR歌',url:'https://youtu.be/fNFzfwLM72c', embed:'https://www.youtube.com/embed/fNFzfwLM72c?si=GuUuH7E2nOnXakK5' },
+    { id:'dynamite',title:'Dynamite（BTS）',          bpm:114, note:'流行活力', url:'https://youtu.be/gdZLi9oWNZg', embed:'https://www.youtube.com/embed/gdZLi9oWNZg?si=vgLqQOl4JtRXaquI' },
+    { id:'uptown',  title:'Uptown Funk',              bpm:115, note:'律動強勁', url:'https://youtu.be/OPf0YbXqDm0', embed:'https://www.youtube.com/embed/OPf0YbXqDm0?si=sfDCLmeOe87Osb9K' },
+  ];
+
+  // ════════════════════════════════════════
+  //  學生狀態
+  // ════════════════════════════════════════
+  let student = { class_name:'', seat_no:0, name:'' };
+  let studentHistory = [];
+
+  // ════════════════════════════════════════
+  //  遊戲狀態
+  // ════════════════════════════════════════
+  const gs = {
+    mode: 'youtube',
+    selectedSong: songs[0],
+    currentBpm: 115,
+    isRunning: false,
+    isMetronomeActive: false,
+    hitTimes: [],
+    beatTimes: [],
+  };
+
+  let audioContext, masterGain;
+  let beatInterval, metronomeIntervalId;
+
+  // ════════════════════════════════════════
+  //  初始化
+  // ════════════════════════════════════════
+  async function init() {
+    initAudio();
+    // 手機：切換為節拍器模式，YouTube 改為外部連結
+    if (isMobile) {
+      document.getElementById('ytDesktop').style.display = 'none';
+      document.getElementById('ytMobile').classList.remove('hidden');
+      document.getElementById('ytCardHint').textContent = '點連結在 YouTube 聽歌';
+      gs.mode = 'metronome';
+    }
+    renderSongSelect();
+    renderSongList();
+    updateTargetDisplay();
+    updateModeDisplay();
+    updateMetronomeButtons();
+    setYouTubeEmbed(gs.selectedSong.embed);
+    loadClasses();
+    document.getElementById('headerStudentInfo').textContent = '請先登入';
+  }
+
+  // ════════════════════════════════════════
+  //  班級清單
+  // ════════════════════════════════════════
+  function loadClasses() {
+    const CLASSES = ['301','302','303','304','310','311','312'];
+    const sel = document.getElementById('loginClass');
+    CLASSES.forEach(cls => {
+      const opt = document.createElement('option');
+      opt.value = cls; opt.textContent = cls + ' 班';
+      sel.appendChild(opt);
+    });
+  }
+
+  // ════════════════════════════════════════
+  //  登入 / 登出
+  // ════════════════════════════════════════
+  async function doLogin() {
+    const btn = document.getElementById('loginBtn');
+    const errEl = document.getElementById('loginError');
+
+    const cls  = document.getElementById('loginClass').value.trim();
+    const seat = document.getElementById('loginSeat').value.trim();
+    const name = document.getElementById('loginName').value.trim();
+
+    if (!cls || !seat || !name) {
+      errEl.textContent = '請填寫所有欄位';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '驗證中...';
+    errEl.classList.add('hidden');
+
+    try {
+      const resp = await fetch(GAS_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        body: JSON.stringify({ action: 'checkStudent', class_name: cls, seat_no: parseInt(seat), student_name: name })
+      });
+      const data = await resp.json();
+
+      if (data.ok) {
+        student = { class_name: cls, seat_no: parseInt(seat), name };
+        studentHistory = data.history || [];
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('headerStudentInfo').textContent = `${cls} 班 ${seat} 號 ${name}`;
+        document.getElementById('advice').textContent = '已登入！選擇歌曲開始練習吧！';
+        renderMyBest();
+      } else {
+        errEl.textContent = data.error || '登入失敗';
+        errEl.classList.remove('hidden');
+      }
+    } catch(e) {
+      errEl.textContent = '網路錯誤，請稍後再試';
+      errEl.classList.remove('hidden');
+    }
+
+    btn.disabled = false;
+    btn.textContent = '進入遊戲';
+  }
+
+  function doLogout() {
+    closeRanking();
+    resetTraining();
+    student = { class_name:'', seat_no:0, name:'' };
+    studentHistory = [];
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('loginClass').value = '';
+    document.getElementById('loginSeat').value = '';
+    document.getElementById('loginName').value = '';
+    document.getElementById('loginError').classList.add('hidden');
+  }
+
+  function doGuestLogin() {
+    student = { class_name:'訪客', seat_no:0, name:'訪客', isGuest: true };
+    studentHistory = [];
+    document.getElementById('loginOverlay').style.display = 'none';
+    document.getElementById('headerStudentInfo').textContent = '訪客模式（成績不記錄）';
+    document.getElementById('advice').textContent = '訪客模式！選擇歌曲，開始體驗 CPR 節奏訓練！';
+    document.getElementById('submitHint').textContent = '訪客模式：暫停後顯示本次成績，不記錄至後台。';
+    renderMyBest();
+  }
+
+  // ════════════════════════════════════════
+  //  我的最佳紀錄
+  // ════════════════════════════════════════
+  function renderMyBest() {
+    if (!studentHistory.length) {
+      document.getElementById('myBestAccuracy').textContent = '—';
+      document.getElementById('myBestBpm').textContent = '—';
+      document.getElementById('myPlayCount').textContent = '0';
+      document.getElementById('myLastPlayed').textContent = '';
+      return;
+    }
+    const accs = studentHistory.map(r => r.accuracy).filter(a => a != null);
+    const bpms = studentHistory.map(r => r.avg_bpm).filter(b => b != null);
+    const bestAcc = accs.length ? Math.max(...accs) : null;
+    const bestBpm = bpms.length ? bpms.reduce((a,b) => Math.abs(b-110) < Math.abs(a-110) ? b : a) : null;
+
+    document.getElementById('myBestAccuracy').textContent = bestAcc !== null ? Math.round(bestAcc) + '%' : '—';
+    document.getElementById('myBestBpm').textContent = bestBpm !== null ? Math.round(bestBpm) : '—';
+    document.getElementById('myPlayCount').textContent = studentHistory.length;
+    document.getElementById('myLastPlayed').textContent = studentHistory[0]
+      ? '上次測驗：' + studentHistory[0].played_at : '';
+  }
+
+  // ════════════════════════════════════════
+  //  成績送出 & 排名彈窗
+  // ════════════════════════════════════════
+  async function submitScore() {
+    if (!student.class_name) return;
+
+    const avgBpmVal  = document.getElementById('avgBpm').textContent;
+    const accVal     = document.getElementById('accuracy').textContent;
+    const hitsVal    = document.getElementById('totalHits').textContent;
+
+    const avg_bpm    = parseFloat(avgBpmVal) || null;
+    const accuracy   = parseFloat(accVal)    || null;
+    const total_hits = parseInt(hitsVal)     || 0;
+
+    if (total_hits < 5) {
+      document.getElementById('advice').textContent = '點擊次數太少，請多練習再送出！';
+      return;
+    }
+
+    // 訪客模式：只顯示本次結果，不送出成績
+    if (student.isGuest) {
+      showRanking(null, avg_bpm, accuracy, total_hits);
+      return;
+    }
+
+    try {
+      const resp = await fetch(GAS_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        body: JSON.stringify({
+          action: 'submitScore',
+          class_name: student.class_name,
+          seat_no: student.seat_no,
+          student_name: student.name,
+          avg_bpm, accuracy, total_hits,
+          song_title: gs.selectedSong.title
+        })
+      });
+      const data = await resp.json();
+      if (data.ok) {
+        studentHistory = data.history || [];
+        renderMyBest();
+        showRanking(data.ranking, avg_bpm, accuracy, total_hits);
+      }
+    } catch(e) {
+      console.error('送出成績失敗:', e);
+    }
+  }
+
+  function showRanking(ranking, avg_bpm, accuracy, total_hits) {
+    document.getElementById('rankAvgBpm').textContent = avg_bpm ? Math.round(avg_bpm) : '—';
+    document.getElementById('rankAccuracy').textContent = accuracy ? Math.round(accuracy) + '%' : '—';
+    document.getElementById('rankHits').textContent = total_hits || '—';
+
+    // 訪客模式：不顯示排名與歷史
+    if (student.isGuest) {
+      document.getElementById('rankStudentName').textContent = '訪客體驗模式';
+      document.getElementById('rankOverall').textContent = '—';
+      document.getElementById('rankTotal').textContent = '—';
+      document.getElementById('rankClass').textContent = '—';
+      document.getElementById('rankClassTotal').textContent = '—';
+      document.getElementById('rankEncourage').textContent = '訪客模式不記錄成績，歡迎以學生身份登入加入排名！🎓';
+      document.getElementById('rankHistoryBody').innerHTML =
+        '<tr><td colspan="5" class="text-center text-white/50 py-3">訪客模式不保留歷史紀錄</td></tr>';
+      document.getElementById('rankingModal').classList.add('show');
+      return;
+    }
+
+    document.getElementById('rankStudentName').textContent =
+      `${student.class_name} 班 ${student.seat_no} 號 ${student.name}`;
+
+    const overall = ranking?.overall;
+    const total   = ranking?.overall_total;
+    const clsRank = ranking?.class_rank;
+    const clsTot  = ranking?.class_total;
+
+    document.getElementById('rankOverall').textContent = overall || '—';
+    document.getElementById('rankTotal').textContent   = total   || '—';
+    document.getElementById('rankClass').textContent   = clsRank || '—';
+    document.getElementById('rankClassTotal').textContent = clsTot || '—';
+
+    // 鼓勵語
+    const encourage = genEncourage(overall, total, accuracy, avg_bpm);
+    document.getElementById('rankEncourage').textContent = encourage;
+
+    // 歷史成績表格
+    const tbody = document.getElementById('rankHistoryBody');
+    tbody.innerHTML = '';
+    studentHistory.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.played_at.substring(5,16)}</td>
+        <td>${r.avg_bpm ? Math.round(r.avg_bpm) : '—'}</td>
+        <td>${r.accuracy ? Math.round(r.accuracy) + '%' : '—'}</td>
+        <td>${r.total_hits || 0}</td>
+        <td style="max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.song_title || '—'}</td>
+      `;
+      if (i === 0) tr.style.fontWeight = 'bold';
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('rankingModal').classList.add('show');
+  }
+
+  function genEncourage(rank, total, accuracy, avg_bpm) {
+    if (!rank || !total) return '繼續練習，你一定可以做到！ 💪';
+    const pct = rank / total;
+    const acc = accuracy || 0;
+    const TARGET = 110;
+    const bpmClose = avg_bpm ? Math.abs(avg_bpm - TARGET) <= 10 : false;
+
+    if (pct <= 0.1)
+      return `太厲害了！你是全體前 10% 的 CPR 高手！節奏掌握非常精準，繼續保持！🏆`;
+    if (pct <= 0.25)
+      return `超棒！你排在全體前 25%，節奏感很好！再多練習幾次，就能衝上榜首！⭐`;
+    if (pct <= 0.5)
+      return `不錯喔！你已經超過了一半的同學！${bpmClose ? 'BPM 很接近目標，' : ''}繼續加油，進步空間很大！💪`;
+    if (acc >= 60)
+      return `你的準確率達到 ${Math.round(acc)}%，基礎不錯！專注聽節拍，每次練習都會進步！`;
+    return `別灰心，CPR 需要多加練習！跟著節拍一步一步來，你一定可以救人一命！加油！🫀`;
+  }
+
+  function closeRanking() {
+    document.getElementById('rankingModal').classList.remove('show');
+  }
+
+  // ════════════════════════════════════════
+  //  Web Audio
+  // ════════════════════════════════════════
+  function initAudio() {
+    try {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioContext.createGain();
+      masterGain.connect(audioContext.destination);
+      masterGain.gain.value = 0.6;
+    } catch(e) { console.warn('Web Audio 不支援:', e); }
+  }
+
+  function playMetronomeClick(isAccent = false) {
+    if (!audioContext) return;
+    const osc = audioContext.createOscillator();
+    const g = audioContext.createGain();
+    osc.connect(g); g.connect(masterGain);
+    osc.frequency.value = isAccent ? 1000 : 800;
+    osc.type = 'sine';
+    const now = audioContext.currentTime;
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(0.3, now + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.start(now); osc.stop(now + 0.08);
+  }
+
+  // ════════════════════════════════════════
+  //  模式切換
+  // ════════════════════════════════════════
+  function switchMode(mode) {
+    gs.mode = mode;
+    updateModeDisplay();
+    updateTargetDisplay();
+    resetTraining();
+  }
+
+  function updateModeDisplay() {
+    const isYT = gs.mode === 'youtube';
+    document.getElementById('modeYoutube').className = 'px-3 py-1 text-sm rounded-full ' + (isYT ? 'bg-white/25' : 'hover:bg-white/20');
+    document.getElementById('modeMetronome').className = 'px-3 py-1 text-sm rounded-full ' + (!isYT ? 'bg-white/25' : 'hover:bg-white/20');
+    document.getElementById('youtubeCard').style.display = isYT ? 'block' : 'none';
+    document.getElementById('metronomeCard').classList.toggle('hidden', isYT);
+    document.getElementById('metronomePanel').classList.toggle('hidden', isYT);
+  }
+
+  function updateTargetDisplay() {
+    const badge = document.getElementById('targetBpmBadge');
+    const bpmSpan = document.getElementById('currentBpm');
+    if (gs.mode === 'youtube') {
+      badge.textContent = gs.selectedSong.bpm + ' BPM';
+    } else {
+      badge.textContent = gs.currentBpm + ' BPM';
+      if (bpmSpan) bpmSpan.textContent = gs.currentBpm;
+    }
+  }
+
+  // ════════════════════════════════════════
+  //  歌曲渲染
+  // ════════════════════════════════════════
+  function renderSongSelect() {
+    const sel = document.getElementById('songSelect');
+    sel.innerHTML = '<option value="">請選擇歌曲...</option>';
+    songs.forEach((s, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = `${s.title} (${s.bpm} BPM)`;
+      if (gs.selectedSong.id === s.id) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderSongList() {
+    const list = document.getElementById('songList');
+    list.innerHTML = '';
+    songs.forEach(s => {
+      const selected = gs.selectedSong.id === s.id && gs.mode === 'youtube';
+      const div = document.createElement('div');
+      div.className = `w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl transition cursor-pointer text-sm ${selected ? 'bg-white/25' : 'bg-white/10 hover:bg-white/20'}`;
+      div.innerHTML = `
+        <div class="flex-1">
+          <div class="font-semibold text-sm">${s.title}</div>
+          <div class="text-xs text-white/80">${s.note}</div>
+        </div>
+        <div class="flex items-center gap-1">
+          ${selected ? '<span class="text-emerald-300 text-xs font-semibold">✓</span>' : ''}
+          <span class="px-2 py-1 rounded-full bg-black/30 text-white/90 text-xs">${s.bpm}</span>
+          <a href="${s.url}" target="_blank" rel="noopener" class="text-xs underline text-cyan-200 hover:text-white px-1">YT</a>
+        </div>
+      `;
+      div.addEventListener('click', e => {
+        if (e.target.tagName.toLowerCase() === 'a') return;
+        selectSong(s);
+      });
+      list.appendChild(div);
+    });
+  }
+
+  function selectSong(song) {
+    if (!isMobile && gs.mode !== 'youtube') { gs.mode = 'youtube'; updateModeDisplay(); }
+    gs.selectedSong = song;
+    updateTargetDisplay();
+    setYouTubeEmbed(song.embed);
+    renderSongList();
+    renderSongSelect();
+    if (gs.isRunning) restartBeat();
+  }
+
+  function setYouTubeEmbed(url) {
+    document.getElementById('ytFrame').src = url || '';
+    // 更新手機外部連結
+    const song = gs.selectedSong;
+    if (song) {
+      document.getElementById('ytOpenLink').href = song.url;
+      document.getElementById('ytSongInfo').textContent = `${song.title}（${song.bpm} BPM）`;
+    }
+  }
+
+  // ════════════════════════════════════════
+  //  節拍器
+  // ════════════════════════════════════════
+  function selectMetronomeBpm(bpm) {
+    gs.currentBpm = bpm;
+    updateTargetDisplay();
+    updateMetronomeButtons();
+    if (gs.isMetronomeActive) { stopMetronome(); startMetronome(); }
+  }
+
+  function updateMetronomeButtons() {
+    document.querySelectorAll('.metronome-btn[data-bpm]').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.bpm) === gs.currentBpm);
+    });
+  }
+
+  function toggleMetronome() {
+    gs.isMetronomeActive ? stopMetronome() : startMetronome();
+  }
+
+  function startMetronome() {
+    if (!audioContext) return;
+    if (audioContext.state === 'suspended') audioContext.resume();
+    stopMetronome();
+    gs.isMetronomeActive = true;
+    document.getElementById('metronomePlayBtn').textContent = '停止節拍器';
+    const interval = 60000 / gs.currentBpm;
+    let beatCount = 0;
+    playMetronomeClick(true); updateMetronomeVisual(true); beatCount++;
+    metronomeIntervalId = setInterval(() => {
+      playMetronomeClick(beatCount % 4 === 0);
+      updateMetronomeVisual(beatCount % 4 === 0);
+      beatCount++;
+    }, interval);
+  }
+
+  function stopMetronome() {
+    gs.isMetronomeActive = false;
+    document.getElementById('metronomePlayBtn').textContent = '開始節拍器';
+    document.getElementById('metronomeVisual').textContent = '♪';
+    clearInterval(metronomeIntervalId); metronomeIntervalId = null;
+  }
+
+  function updateMetronomeVisual(isAccent) {
+    const el = document.getElementById('metronomeVisual');
+    el.textContent = isAccent ? '♫' : '♪';
+    el.style.color = isAccent ? '#10b981' : '#ffffff';
+    el.style.transform = isAccent ? 'scale(1.2)' : 'scale(1)';
+    setTimeout(() => { el.style.transform = 'scale(1)'; el.style.color = '#ffffff'; }, 100);
+  }
+
+  // ════════════════════════════════════════
+  //  訓練控制
+  // ════════════════════════════════════════
+  function startTraining() {
+    if (!student.class_name) {
+      document.getElementById('advice').textContent = '請先登入後再開始訓練！';
+      return;
+    }
+    if (gs.mode === 'metronome' && !gs.isMetronomeActive) startMetronome();
+    gs.isRunning = true;
+    document.getElementById('btnStart').disabled = true;
+    document.getElementById('advice').textContent = '跟著節拍點擊，保持穩定節奏！';
+    startVisualBeat();
+  }
+
+  function pauseTraining() {
+    gs.isRunning = false;
+    document.getElementById('btnStart').disabled = false;
+    stopVisualBeat();
+    if (gs.mode === 'metronome') stopMetronome();
+    document.getElementById('advice').textContent = '訓練暫停，成績計算中...';
+    submitScore();
+  }
+
+  function resetTraining() {
+    gs.isRunning = false;
+    gs.hitTimes = []; gs.beatTimes = [];
+    document.getElementById('btnStart').disabled = false;
+    document.getElementById('liveBpm').textContent = '—';
+    document.getElementById('accuracy').textContent = '—';
+    document.getElementById('tempoHint').textContent = '—';
+    document.getElementById('avgBpm').textContent = '—';
+    document.getElementById('totalHits').textContent = '0';
+    document.getElementById('beatLabel').textContent = 'READY';
+    document.getElementById('advice').textContent = student.class_name ? '選擇歌曲開始練習！' : '請先登入後再開始！';
+    stopVisualBeat();
+    if (gs.mode === 'metronome') stopMetronome();
+  }
+
+  // ════════════════════════════════════════
+  //  視覺節拍
+  // ════════════════════════════════════════
+  function startVisualBeat() {
+    stopVisualBeat();
+    const targetBpm = gs.mode === 'youtube' ? gs.selectedSong.bpm : gs.currentBpm;
+    const interval = 60000 / targetBpm;
+    let beatCount = 1;
+    gs.beatTimes.push(performance.now());
+    beatInterval = setInterval(() => {
+      gs.beatTimes.push(performance.now());
+      const circle = document.getElementById('beatCircle');
+      const label  = document.getElementById('beatLabel');
+      const halo   = document.getElementById('beatHalo');
+      circle.classList.remove('beat-flash');
+      void circle.offsetWidth;
+      circle.classList.add('beat-flash');
+      label.textContent = ((beatCount - 1) % 4 + 1).toString();
+      beatCount++;
+      halo.style.opacity = '0.9';
+      setTimeout(() => halo.style.opacity = '0.7', 120);
+    }, interval);
+  }
+
+  function stopVisualBeat() {
+    clearInterval(beatInterval); beatInterval = null;
+  }
+
+  function restartBeat() {
+    if (gs.isRunning) { stopVisualBeat(); startVisualBeat(); }
+  }
+
+  // ════════════════════════════════════════
+  //  點擊處理
+  // ════════════════════════════════════════
+  function registerTap() {
+    if (!gs.isRunning) return;
+    gs.hitTimes.push(performance.now());
+    const circle = document.getElementById('beatCircle');
+    circle.style.filter = 'brightness(1.3) saturate(1.2)';
+    circle.style.transform = 'scale(0.98)';
+    if (navigator.vibrate) navigator.vibrate(50);
+    setTimeout(() => { circle.style.filter = ''; circle.style.transform = ''; }, 150);
+    updateGameStats();
+  }
+
+  function updateGameStats() {
+    const hitCount = gs.hitTimes.length;
+    document.getElementById('totalHits').textContent = hitCount;
+    if (hitCount < 2) return;
+
+    const recent = gs.hitTimes.slice(-6);
+    const intervals = [];
+    for (let i = 1; i < recent.length; i++) intervals.push(recent[i] - recent[i-1]);
+    const avg = intervals.reduce((a,b)=>a+b,0) / intervals.length;
+    const curBpm = Math.round(60000 / avg);
+    document.getElementById('liveBpm').textContent = curBpm;
+
+    const targetBpm = gs.mode === 'youtube' ? gs.selectedSong.bpm : gs.currentBpm;
+    const diff = curBpm - targetBpm;
+    const absDiff = Math.abs(diff);
+    const tempoEl = document.getElementById('tempoHint');
+    if (absDiff <= 5)       { tempoEl.textContent = '完美'; tempoEl.className = 'text-lg font-bold text-emerald-300'; }
+    else if (absDiff <= 10) { tempoEl.textContent = '不錯'; tempoEl.className = 'text-lg font-bold text-yellow-300'; }
+    else if (diff > 0)      { tempoEl.textContent = '太快'; tempoEl.className = 'text-lg font-bold text-amber-300'; }
+    else                    { tempoEl.textContent = '太慢'; tempoEl.className = 'text-lg font-bold text-rose-300'; }
+
+    // 準確率
+    let onTime = 0;
+    if (gs.beatTimes.length > 0) {
+      gs.hitTimes.forEach(ht => {
+        const nearest = gs.beatTimes.reduce((a,b) => Math.abs(b-ht) < Math.abs(a-ht) ? b : a);
+        if (Math.abs(ht - nearest) <= 150) onTime++;
+      });
+    } else {
+      if (absDiff<=5) onTime=Math.floor(hitCount*0.9);
+      else if(absDiff<=10) onTime=Math.floor(hitCount*0.7);
+      else if(absDiff<=15) onTime=Math.floor(hitCount*0.5);
+      else onTime=Math.floor(hitCount*0.3);
+    }
+    const acc = hitCount > 0 ? Math.round((onTime/hitCount)*100) : 0;
+    document.getElementById('accuracy').textContent = acc + '%';
+
+    // 平均BPM
+    if (hitCount >= 2) {
+      let total = 0;
+      for (let i=1;i<gs.hitTimes.length;i++) total += gs.hitTimes[i]-gs.hitTimes[i-1];
+      const avgBpm = Math.round(60000/(total/(hitCount-1)));
+      document.getElementById('avgBpm').textContent = avgBpm;
+    }
+
+    // 建議
+    const advice = document.getElementById('advice');
+    if (acc >= 90) advice.textContent = '太棒了！節奏掌握完美！';
+    else if (acc >= 75) advice.textContent = '很好，再穩定一點就更完美了';
+    else if (acc >= 60) advice.textContent = '不錯的開始，繼續保持';
+    else advice.textContent = absDiff > 5 ? '節奏太快，試著放慢一點' : '仔細聽節拍，跟緊音樂或節拍器';
+  }
+
+  // ════════════════════════════════════════
+  //  事件繫結
+  // ════════════════════════════════════════
+  function bindEvents() {
+    document.getElementById('modeYoutube').addEventListener('click', () => switchMode('youtube'));
+    document.getElementById('modeMetronome').addEventListener('click', () => switchMode('metronome'));
+    document.getElementById('songSelect').addEventListener('change', e => {
+      if (e.target.value !== '') selectSong(songs[parseInt(e.target.value)]);
+    });
+    document.getElementById('metronomePlayBtn').addEventListener('click', toggleMetronome);
+    document.getElementById('metronomeVolume').addEventListener('input', e => {
+      if (masterGain) masterGain.gain.value = parseFloat(e.target.value);
+    });
+    document.querySelectorAll('.metronome-btn[data-bpm]').forEach(btn => {
+      btn.addEventListener('click', () => selectMetronomeBpm(parseInt(btn.dataset.bpm)));
+    });
+    document.getElementById('btnStart').addEventListener('click', startTraining);
+    document.getElementById('btnPause').addEventListener('click', pauseTraining);
+    document.getElementById('btnReset').addEventListener('click', resetTraining);
+    document.getElementById('tapBtn').addEventListener('click', registerTap);
+    document.getElementById('beatCircle').addEventListener('click', registerTap);
+    document.getElementById('beatCircle').addEventListener('touchstart', e => { e.preventDefault(); registerTap(); }, { passive: false });
+    document.getElementById('beatCircle').addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    document.addEventListener('keydown', e => {
+      if (['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) return;
+      if (e.code === 'Space') { e.preventDefault(); registerTap(); }
+      if (e.code === 'KeyP' && gs.mode === 'metronome') { e.preventDefault(); toggleMetronome(); }
+      if (e.code === 'KeyR') { e.preventDefault(); resetTraining(); }
+    });
+    // 登入 Enter 鍵
+    ['loginSeat','loginName'].forEach(id => {
+      document.getElementById(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') doLogin();
+      });
+    });
+  }
+
+  // ════════════════════════════════════════
+  //  啟動
+  // ════════════════════════════════════════
+  bindEvents();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+  </script>
+</body>
+</html>
